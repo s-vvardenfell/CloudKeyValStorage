@@ -4,24 +4,18 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+
+	"github.com/s-vvardenfell/CloudKeyValStorage/types"
 )
 
-type TransactionLogger interface {
-	WriteDelete(key string)
-	WritePut(key, value string)
-	Err() <-chan error
-	ReadEvents() (<-chan Event, <-chan error)
-	Run()
-}
-
 type FileTransactionLogger struct {
-	events       chan<- Event // Канал только для записи; для передачи событий
-	errors       <-chan error // Канал только для чтения; для приема ошибок
-	lastSequence uint64       // Последний использованный порядковый номер
-	file         *os.File     // Местоположение файла журнала}
+	events       chan<- types.Event // Канал только для записи; для передачи событий
+	errors       <-chan error       // Канал только для чтения; для приема ошибок
+	lastSequence uint64             // Последний использованный порядковый номер
+	file         *os.File           // Местоположение файла журнала}
 }
 
-func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
+func NewFileTransactionLogger(filename string) (types.TransactionLogger, error) {
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open transaction log file: %w", err)
@@ -30,11 +24,11 @@ func NewFileTransactionLogger(filename string) (TransactionLogger, error) {
 }
 
 func (l *FileTransactionLogger) WritePut(key, value string) {
-	l.events <- Event{EventType: EventPut, Key: key, Value: value}
+	l.events <- types.Event{EventType: types.EventPut, Key: key, Value: value}
 }
 
 func (l *FileTransactionLogger) WriteDelete(key string) {
-	l.events <- Event{EventType: EventDelete, Key: key}
+	l.events <- types.Event{EventType: types.EventDelete, Key: key}
 }
 
 func (l *FileTransactionLogger) Err() <-chan error {
@@ -42,7 +36,7 @@ func (l *FileTransactionLogger) Err() <-chan error {
 }
 
 func (l *FileTransactionLogger) Run() {
-	events := make(chan Event, 16) // Создать канал событий
+	events := make(chan types.Event, 16) // Создать канал событий
 	l.events = events
 	errors := make(chan error, 1) // Создать канал ошибок
 	l.errors = errors
@@ -65,13 +59,13 @@ func (l *FileTransactionLogger) Run() {
 	}()
 }
 
-func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
+func (l *FileTransactionLogger) ReadEvents() (<-chan types.Event, <-chan error) {
 	scanner := bufio.NewScanner(l.file) // Создать Scanner для чтения l.file
-	outEvent := make(chan Event)        // Небуферизованный канал событий
+	outEvent := make(chan types.Event)  // Небуферизованный канал событий
 	outError := make(chan error, 1)     // Буферизованный канал ошибок
 
 	go func() {
-		var e Event
+		var e types.Event
 		defer close(outEvent) // Закрыть каналы
 		defer close(outError) // по завершении сопрограммы
 

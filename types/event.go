@@ -1,4 +1,4 @@
-package file_journal
+package types
 
 type EventType byte
 
