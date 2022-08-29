@@ -10,9 +10,10 @@ import (
 	"github.com/gorilla/mux"
 	fj "github.com/s-vvardenfell/CloudKeyValStorage/file_journal"
 	"github.com/s-vvardenfell/CloudKeyValStorage/storage"
+	"github.com/s-vvardenfell/CloudKeyValStorage/types"
 )
 
-var logger fj.TransactionLogger
+var logger types.TransactionLogger
 
 func initializeTransactionLog() error {
 	var err error
@@ -22,17 +23,17 @@ func initializeTransactionLog() error {
 	}
 
 	events, errors := logger.ReadEvents()
-	e, ok := fj.Event{}, true
+	e, ok := types.Event{}, true
 
 	for ok && err == nil {
 		select {
 		case err, ok = <-errors: // Получает ошибки
 		case e, ok = <-events:
 			switch e.EventType {
-			case fj.EventDelete:
+			case types.EventDelete:
 				// Получено событие DELETE!
 				err = storage.Delete(e.Key)
-			case fj.EventPut:
+			case types.EventPut:
 				// Получено событие PUT!
 				err = storage.Put(e.Key, e.Value)
 			}
